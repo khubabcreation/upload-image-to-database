@@ -1,0 +1,103 @@
+import 'dart:io';
+import 'dart:math';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+class UploadPdfAndDownload extends StatefulWidget {
+  const UploadPdfAndDownload({Key? key}) : super(key: key);
+
+  @override
+  State<UploadPdfAndDownload> createState() => _UploadPdfAndDownloadState();
+}
+
+class _UploadPdfAndDownloadState extends State<UploadPdfAndDownload> {
+  final mainRefernce = FirebaseDatabase.instance.reference().child('DataBase');
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Upload Pdf File'),
+        centerTitle: true,
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          getPdfAndUpload();
+        },
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+
+  Future getPdfAndUpload() async {
+    var rng = new Random();
+    String randomName = '';
+    for (var i = 0; i < 20; i++) {
+      print(rng.nextInt(100));
+      randomName += rng.nextInt(100).toString();
+    }
+
+    FilePickerResult? result = await FilePicker.platform.pickFiles();
+
+    if (result != null) {
+      File file = await File(result.files.single.path!);
+      String filename = '${randomName}.pdf';
+      savePdf(file.readAsBytesSync(), await filename);
+    } else {
+      // User canceled the picker
+    }
+  }
+
+  savePdf(var assets, String name) async {
+    Reference refernce = FirebaseStorage.instance.ref().child(name);
+    UploadTask uploadTask = refernce.putData(assets);
+    String url = (await (await uploadTask
+        .whenComplete(() => refernce.getDownloadURL())))as String;
+    documentFileUpload(url);
+  }
+
+  void documentFileUpload(String str) {
+    var data = {
+      "PDF": str,
+      "File_Name": "My new Book",
+    };
+    mainRefernce.child('1').set(data).then((value) {
+      print('data added Successfully');
+    });
+  }
+}
+
+// uploadImage() async {
+//   final _firebaseStorage = FirebaseStorage.instance;
+//   final _imagePicker = ImagePicker();
+//   PickedFile image;
+//   //Check Permissions
+//   await Permission.photos.request();
+//
+//   var permissionStatus = await Permission.photos.status;
+//
+//   if (permissionStatus.isGranted){
+//     //Select Image
+//     image = await _imagePicker.getImage(source: ImageSource.gallery);
+//     var file = File(image.path);
+//
+//     if (image != null){
+//       //Upload to Firebase
+//       var snapshot = await _firebaseStorage.ref()
+//           .child('images/imageName')
+//           .putFile(file).onComplete;
+//       var downloadUrl = await snapshot.ref.getDownloadURL();
+//       setState(() {
+//         imageUrl = downloadUrl;
+//       });
+//     } else {
+//       print('No Image Path Received');
+//     }
+//   } else {
+//     print('Permission not granted. Try Again with permission access');
+//   }
+// }
